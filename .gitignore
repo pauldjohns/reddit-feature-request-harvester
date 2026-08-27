@@ -1,0 +1,17 @@
+# Run state and caches. These fill with harvested content - Reddit authors,
+# permalinks and post text - so they must not be committed. Names match the
+# defaults in main.py (STATE_FILE, COMPANY_CACHE_FILE, PHRASE_CACHE_FILE).
+state.json
+companies.json
+support_outage_review.json
+phrase_cache.json
+*.log
+
+# secrets
+.env
+service-account*.json
+credentials.json
+
+__pycache__/
+*.pyc
+.DS_Store

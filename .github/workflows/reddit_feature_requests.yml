@@ -1,0 +1,74 @@
+name: Reddit Feature Requests (Weekly)
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Mondays 09:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Auth (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          audience: 'https://github.com/${{ github.repository }}/'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run harvester (90d, deeper crawl, conf>=0.8)
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          # --- Harvest tuning (broader + deeper) ---
+          LOOKBACK_DAYS: "90"        # (A) widen to 90 days
+          PAGES_PER_QUERY: "5"       # (C) increase crawl depth
+          LIMIT_PER_PAGE: "100"
+          EXPANSION_TOPN: "35"       # try more expansion terms
+          MAX_CLASSIFY: "2000"       # guardrail on cost/time
+          REQUESTS_PER_MIN: "40"     # polite global cap
+          VERBOSE: "0"
+          ENABLE_SUB_DISCOVERY: "0"   # set to "1" to activate subreddit search and crawl
+          SUBS_PER_COMPANY: "2"
+          SUB_CRAWL_PAGES_MAX: "10"
+          # --- Phase 1 snippet extraction defaults (edit to revert) ---
+          EXPANSION_PHRASES: "feature request|wishlist|please add|any plans for"
+          EXTRACT_SNIPPETS_MAX: "400"
+          EXTRACT_SNIPPET_LEN: "300"
+          EXTRACT_DIVERSITY_TEMP: "0.3"
+          # --- Classifier threshold (D) ---
+          CONF_THRESHOLD: "0.8"
+          # --- Reddit search range; leave "year" so 90d fits inside ---
+          REDDIT_TIME_RANGE: "year"
+          # --- Phase 2 fit scoring ---
+          ENABLE_FIT_SCORING: "0"
+          # FIT_MODEL: ""            # optional
+          # --- Phase 3 canonical company matching ---
+          ENABLE_CANONICAL_COMPANY: "0"   # set to "1" to enable Phase 3
+          # --- Phase 4 company scoring ---
+          ENABLE_COMPANY_SCORES: "0"   # set to "1" to enable Phase 4
+          TOP_N: "25"
+        run: |
+          python main.py
