@@ -46,6 +46,7 @@ The sheet needs three tabs to exist first: `Requests`, `Clusters`, `Companies` (
 Then:
 
 ```bash
+cp .env.example .env      # fill it in - it is gitignored
 pip install -r requirements.txt
 python main.py
 ```
